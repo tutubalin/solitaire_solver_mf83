@@ -53,11 +53,11 @@ func (state *State) output() {
 	}
 }
 
-func processBatch(batch []*State, candidates chan *State, quit chan int) {
+func processBatch(batch []*State, candidates chan *State) {
 	for _, state := range batch {
 		state.possibleStates(candidates)
 	}
-	quit <- 1
+	candidates <- nil
 }
 
 func (state *State) possibleStates(candidates chan *State) {
@@ -151,7 +151,6 @@ func solve() *State {
 	states := Set{INITIAL_STATE: {}}
 
 	candidates := make(chan *State)
-	quit := make(chan int)
 
 	for len(states) > 0 {
 
@@ -162,21 +161,20 @@ func solve() *State {
 		for state := range states {
 			batch = append(batch, state)
 			if len(batch) == 100 {
-				go processBatch(batch, candidates, quit)
+				go processBatch(batch, candidates)
 				active++
 				batch = []*State{}
 			}
-			// go state.possibleStates(candidates, quit)
 		}
 		if len(batch) > 0 {
-			go processBatch(batch, candidates, quit)
+			go processBatch(batch, candidates)
 			active++
 		}
 		fmt.Println("Goroutines:", runtime.NumGoroutine())
 
 		for active > 0 {
-			select {
-			case candidate := <-candidates:
+			candidate := <-candidates
+			if candidate != nil {
 				hash := candidate.hash
 				contestant, exists := best[hash]
 				if !exists || contestant.score < candidate.score {
@@ -186,7 +184,7 @@ func solve() *State {
 					best[hash] = candidate
 					nextStates[candidate] = queued
 				}
-			case <-quit:
+			} else {
 				active--
 			}
 		}
@@ -195,7 +193,6 @@ func solve() *State {
 	}
 
 	close(candidates)
-	close(quit)
 
 	return best[0]
 }
