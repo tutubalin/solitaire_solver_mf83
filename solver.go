@@ -53,18 +53,20 @@ func (state *State) output() {
 	}
 }
 
-func processBatch(batch []*State, candidates chan *State) {
+func processBatch(batch []*State, candidates chan *Table) {
+	var best Table = map[int]*State{}
+
 	for _, state := range batch {
-		state.possibleStates(candidates)
+		state.possibleStates(&best)
 	}
-	candidates <- nil
+	candidates <- &best
 }
 
-func (state *State) possibleStates(candidates chan *State) {
-	recursivePossibleStates(candidates, state, nil, state.score, 0, nil, state.cardsLeft)
+func (state *State) possibleStates(best *Table) {
+	recursivePossibleStates(best, state, nil, state.score, 0, nil, state.cardsLeft)
 }
 
-func recursivePossibleStates(candidates chan *State, parent *State, stack *Stack, score int, stackValue int, actions *Stack, cardsLeft [4]int) {
+func recursivePossibleStates(best *Table, parent *State, stack *Stack, score int, stackValue int, actions *Stack, cardsLeft [4]int) {
 	endStack := true
 
 	for action := range 4 {
@@ -129,7 +131,7 @@ func recursivePossibleStates(candidates chan *State, parent *State, stack *Stack
 					newScore += bestStraight
 				}
 
-				recursivePossibleStates(candidates, parent, &newStack, newScore, newStackValue, &newActions, cardsLeft)
+				recursivePossibleStates(best, parent, &newStack, newScore, newStackValue, &newActions, cardsLeft)
 
 				cardsLeft[action]++
 			}
@@ -137,12 +139,18 @@ func recursivePossibleStates(candidates chan *State, parent *State, stack *Stack
 	}
 
 	if endStack && actions != nil {
-		candidates <- NewState(cardsLeft, score, parent, actions)
+		candidate := NewState(cardsLeft, score, parent, actions)
+		hash := candidate.hash
+		contestant, exists := (*best)[hash]
+		if !exists || contestant.score < candidate.score {
+			(*best)[hash] = candidate
+		}
 	}
 }
 
 type Empty struct{}
 type Set map[*State]Empty
+type Table map[int]*State
 
 var queued = Empty{}
 
@@ -150,7 +158,7 @@ func solve() *State {
 	best := map[int]*State{}
 	states := Set{INITIAL_STATE: {}}
 
-	candidates := make(chan *State)
+	candidates := make(chan *Table)
 
 	for len(states) > 0 {
 
@@ -170,12 +178,12 @@ func solve() *State {
 			go processBatch(batch, candidates)
 			active++
 		}
-		fmt.Println("Goroutines:", runtime.NumGoroutine())
 
 		for active > 0 {
-			candidate := <-candidates
-			if candidate != nil {
-				hash := candidate.hash
+			newTable := <-candidates
+			active--
+
+			for hash, candidate := range *newTable {
 				contestant, exists := best[hash]
 				if !exists || contestant.score < candidate.score {
 					if exists {
@@ -184,8 +192,6 @@ func solve() *State {
 					best[hash] = candidate
 					nextStates[candidate] = queued
 				}
-			} else {
-				active--
 			}
 		}
 
