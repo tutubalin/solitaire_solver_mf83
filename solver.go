@@ -149,24 +149,25 @@ func recursivePossibleStates(best *Table, parent *State, stack *Stack, score int
 }
 
 type Empty struct{}
-type Set map[*State]Empty
+type Set map[int]Empty
 type Table map[int]*State
 
 var queued = Empty{}
 
 func solve() *State {
-	best := map[int]*State{}
-	states := Set{INITIAL_STATE: {}}
+	best := map[int]*State{INITIAL_STATE.hash: INITIAL_STATE}
+	queue := Set{INITIAL_STATE.hash: {}}
 
 	candidates := make(chan *Table)
 
-	for len(states) > 0 {
+	for len(queue) > 0 {
 
-		fmt.Println("States:", len(states))
-		nextStates := Set{}
+		fmt.Println("Queue:", len(queue))
+		nextQueue := Set{}
 		active := 0
 		batch := []*State{}
-		for state := range states {
+		for hash := range queue {
+			state := best[hash]
 			batch = append(batch, state)
 			if len(batch) == 100 {
 				go processBatch(batch, candidates)
@@ -179,6 +180,8 @@ func solve() *State {
 			active++
 		}
 
+		added := 0
+		replaced := 0
 		for active > 0 {
 			newTable := <-candidates
 			active--
@@ -187,15 +190,18 @@ func solve() *State {
 				contestant, exists := best[hash]
 				if !exists || contestant.score < candidate.score {
 					if exists {
-						delete(nextStates, contestant)
+						replaced++
+					} else {
+						added++
 					}
 					best[hash] = candidate
-					nextStates[candidate] = queued
+					nextQueue[hash] = queued
 				}
 			}
 		}
+		fmt.Printf("Added: %v Replaced: %v\n", added, replaced)
 
-		states = nextStates
+		queue = nextQueue
 	}
 
 	close(candidates)
