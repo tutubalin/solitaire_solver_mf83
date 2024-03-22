@@ -6,3 +6,5 @@ experiment
 images
 screenshots
 temp
+__pycache__
+.ipynb_checkpoints
