@@ -3,3 +3,6 @@ experiment
 *.js
 *.bak
 *.exe
+images
+screenshots
+temp
