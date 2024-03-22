@@ -1,15 +1,15 @@
-from PIL import Image
-import numpy as np
-from model import CardDetector
-from torch import tensor
-import torch
-import sys
+from profiler import profile
 
-filename = sys.argv[1]
-
-screenshot = Image.open(filename).convert('F')
-
-# screenshot = Image.open('screenshot.png').convert('F')
+with profile('Importing PIL...'):
+    from PIL import Image
+with profile('Importing numpy...'):    
+    import numpy as np
+with profile('Importing torch...'):            
+    import torch
+with profile('Importing model...'):        
+    from model import CardDetector
+with profile('Importing sys...'):        
+    import sys
 
 NUM_WIDTH = 72
 NUM_X_OFFSET = 371
@@ -18,29 +18,32 @@ NUM_Y_OFFSET = 72
 START_X = 1080
 START_Y = 74
 
-card_images = list()
+filename = sys.argv[1]
+# device = "cuda"
+device = "cpu"
 
-for i in range(4):
-    x = NUM_X_OFFSET*i + START_X
-    for j in range(13):
-        y = NUM_Y_OFFSET*j + START_Y
-        num = screenshot.crop((x,y,x+NUM_WIDTH,y+NUM_HEIGHT)).resize((16,16))
-        num_arr = np.array(num)/255
+with profile('Loading model...'):
+    model = torch.load('model/model.cpkt').to(device)
 
-        card_images.append([num_arr])
+with profile(f'Opening {filename}...'):
+    screenshot = Image.open(filename).convert('F')
 
-device = "cuda"
+with profile('Getting images...'):
+    card_images = list()
+    for i in range(4):
+        x = NUM_X_OFFSET*i + START_X
+        for j in range(13):
+            y = NUM_Y_OFFSET*j + START_Y
+            num = screenshot.crop((x,y,x+NUM_WIDTH,y+NUM_HEIGHT)).resize((16,16))
+            num_arr = np.array(num)/255
 
-input = tensor(np.array(card_images)).to(device)
+            card_images.append([num_arr])
 
-model = torch.load('model.cpkt')
+    input = torch.tensor(np.array(card_images)).to(device)
 
-with torch.no_grad():
+with profile('Scanning...'), torch.no_grad():
     model.eval()
-    output = (torch.argmax(model(input), dim=1)+tensor(1)).cpu().view((4,13))
-    print(output)
+    layout = (torch.argmax(model(input), dim=1)+torch.tensor(1)).cpu().view((4,13))
 
-
-# print(input[0])
-
-
+for column in layout:
+    print(" ".join(str(int(x)) for x in column))
