@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/bits"
 	"runtime"
-	"testing"
 )
 
 const JACK = 11
@@ -45,12 +44,58 @@ func (state *State) output() {
 	}
 
 	fmt.Printf("Score: %v Actions: %v\n", state.score, actions)
-	// for _, bonus := range this.bonuses {
-	// 	fmt.Printf(" - %v", bonus)
-	// }
 	if state.parent != nil {
 		state.parent.output()
 	}
+}
+
+var START_X = 1250
+var START_Y = 225
+var DX_PER_ACTION = 371
+var DY_PER_CARD = 72
+var STACK_X = 810
+var STACK_START_Y = 612
+
+func (state *State) outputAHK() {
+
+	if state.parent != nil {
+		state.parent.outputAHK()
+	}
+
+	stackSize := 0
+	action := state.actions
+	cardsLeft := state.cardsLeft
+	for action != nil {
+		// click card
+		x := action.value*DX_PER_ACTION + START_X
+		y := cardsLeft[action.value]*DY_PER_CARD + START_Y
+		fmt.Printf("MyClick %v, %v\n", x, y)
+		cardsLeft[action.value]--
+		action = action.prev
+		stackSize++
+	}
+
+	// next stack
+	fmt.Printf("MyClick %v, %v\n", STACK_X, STACK_START_Y-DY_PER_CARD*stackSize)
+}
+
+func createAHK(state *State) {
+	fmt.Println("#Requires AutoHotkey v2.0")
+	fmt.Println("#SingleInstance Force")
+	fmt.Println("SendMode \"Event\"")
+	fmt.Println("Scrolllock::")
+	fmt.Println("{")
+	state.outputAHK()
+	fmt.Println("}")
+
+	fmt.Println("MyClick(x, y)")
+	fmt.Println("{")
+	fmt.Println("MouseMove x, y")
+	fmt.Println("Click \"Down\"")
+	fmt.Println("Sleep 60")
+	fmt.Println("Click \"Up\"")
+	fmt.Println("Sleep 60")
+	fmt.Println("}")
 }
 
 func processBatch(batch []*State, candidates chan *Table) {
@@ -161,8 +206,6 @@ func solve() *State {
 	candidates := make(chan *Table)
 
 	for len(queue) > 0 {
-
-		fmt.Println("Queue:", len(queue))
 		nextQueue := Set{}
 		active := 0
 		batch := []*State{}
@@ -199,8 +242,6 @@ func solve() *State {
 				}
 			}
 		}
-		fmt.Printf("Added: %v Replaced: %v\n", added, replaced)
-
 		queue = nextQueue
 	}
 
@@ -209,37 +250,19 @@ func solve() *State {
 	return best[0]
 }
 
+// var layout = [4][13]int{
+// 	{10, 9, 8, 2, 2, 7, 5, 1, 7, 4, 13, 2, 11},
+// 	{6, 6, 1, 7, 4, 2, 9, 11, 12, 10, 8, 8, 10},
+// 	{8, 3, 10, 6, 3, 13, 5, 12, 9, 5, 3, 13, 12},
+// 	{7, 12, 1, 9, 6, 1, 4, 3, 4, 11, 11, 5, 13}}
+
 var layout = [4][13]int{
-	{10, 9, 8, 2, 2, 7, 5, 1, 7, 4, 13, 2, 11},
-	{6, 6, 1, 7, 4, 2, 9, 11, 12, 10, 8, 8, 10},
-	{8, 3, 10, 6, 3, 13, 5, 12, 9, 5, 3, 13, 12},
-	{7, 12, 1, 9, 6, 1, 4, 3, 4, 11, 11, 5, 13}}
+	{2, 1, 13, 2, 2, 12, 3, 4, 5, 11, 5, 3, 9},
+	{6, 10, 13, 3, 1, 13, 12, 7, 6, 9, 8, 3, 7},
+	{12, 10, 5, 13, 11, 10, 4, 8, 8, 9, 11, 1, 7},
+	{5, 9, 6, 1, 8, 6, 2, 12, 11, 10, 4, 4, 7}}
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	fmt.Println(runtime.NumCPU())
-
-	myTest()
-
-	// solve().output()
-
-}
-
-func myTest() {
-	fn := func(b *testing.B) {
-		for n := 0; n < b.N; n++ {
-			solve().output()
-		}
-	}
-	result := testing.Benchmark(fn)
-
-	println(result.String())
-}
-
-func BenchmarkMain(b *testing.B) {
-	fmt.Println("Starting benchmark", b.N)
-	for i := 0; i < b.N; i++ {
-		fmt.Println("Iteration", i)
-		solve()
-	}
+	createAHK(solve())
 }
