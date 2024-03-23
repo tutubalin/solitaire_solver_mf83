@@ -60,10 +60,10 @@ var DY_PER_CARD = 72
 var STACK_X = 810
 var STACK_START_Y = 612
 
-func (state *State) outputAHK() {
+func (state *State) outputAHK(file *os.File) {
 
 	if state.parent != nil {
-		state.parent.outputAHK()
+		state.parent.outputAHK(file)
 	}
 
 	stackSize := 0
@@ -73,33 +73,35 @@ func (state *State) outputAHK() {
 		// click card
 		x := action.value*DX_PER_ACTION + START_X
 		y := cardsLeft[action.value]*DY_PER_CARD + START_Y
-		fmt.Printf("MyClick %v, %v\n", x, y)
+		fmt.Fprintf(file, "MyClick %v, %v\n", x, y)
 		cardsLeft[action.value]--
 		action = action.prev
 		stackSize++
 	}
 
 	// next stack
-	fmt.Printf("MyClick %v, %v\n", STACK_X, STACK_START_Y-DY_PER_CARD*stackSize)
+	if stackSize > 0 {
+		fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y-DY_PER_CARD*stackSize)
+	}
 }
 
-func createAHK(state *State) {
-	fmt.Println("#Requires AutoHotkey v2.0")
-	fmt.Println("#SingleInstance Force")
-	fmt.Println("SendMode \"Event\"")
-	fmt.Println("Scrolllock::")
-	fmt.Println("{")
-	state.outputAHK()
-	fmt.Println("}")
+func createAHK(file *os.File, state *State) {
+	fmt.Fprintln(file, "#Requires AutoHotkey v2.0")
+	fmt.Fprintln(file, "#SingleInstance Force")
+	fmt.Fprintln(file, "SendMode \"Event\"")
+	fmt.Fprintln(file, "Scrolllock::")
+	fmt.Fprintln(file, "{")
+	state.outputAHK(file)
+	fmt.Fprintln(file, "}")
 
-	fmt.Println("MyClick(x, y)")
-	fmt.Println("{")
-	fmt.Println("MouseMove x, y")
-	fmt.Println("Click \"Down\"")
-	fmt.Println("Sleep 60")
-	fmt.Println("Click \"Up\"")
-	fmt.Println("Sleep 60")
-	fmt.Println("}")
+	fmt.Fprintln(file, "MyClick(x, y)")
+	fmt.Fprintln(file, "{")
+	fmt.Fprintln(file, "MouseMove x, y")
+	fmt.Fprintln(file, "Click \"Down\"")
+	fmt.Fprintln(file, "Sleep 60")
+	fmt.Fprintln(file, "Click \"Up\"")
+	fmt.Fprintln(file, "Sleep 60")
+	fmt.Fprintln(file, "}")
 }
 
 func processBatch(batch []*State, candidates chan *Table) {
@@ -271,18 +273,36 @@ func readLayout(scanner *bufio.Scanner) bool {
 		if !scanner.Scan() {
 			return false
 		}
-		line := strings.Split(scanner.Text(), " ")
+		line := scanner.Text()
+		if len(line) == 0 {
+			return false
+		}
+		cards := strings.Split(line, " ")
+		if len(cards) < 13 {
+			return false
+		}
 		for index := range 13 {
-			layout[column][index], _ = strconv.Atoi(line[index])
+			layout[column][index], _ = strconv.Atoi(cards[index])
 		}
 	}
 	return true
 }
 
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	scanner := bufio.NewScanner(os.Stdin)
+
+	outputFile, err := os.Create("solution.ahk")
+	check(err)
+	defer outputFile.Close()
+
 	for readLayout(scanner) {
-		createAHK(solve())
+		createAHK(outputFile, solve())
 	}
 }
