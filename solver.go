@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"math/bits"
+	"os"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 const JACK = 11
@@ -262,7 +266,23 @@ var layout = [4][13]int{
 	{12, 10, 5, 13, 11, 10, 4, 8, 8, 9, 11, 1, 7},
 	{5, 9, 6, 1, 8, 6, 2, 12, 11, 10, 4, 4, 7}}
 
+func readLayout(scanner *bufio.Scanner) bool {
+	for column := range 4 {
+		if !scanner.Scan() {
+			return false
+		}
+		line := strings.Split(scanner.Text(), " ")
+		for index := range 13 {
+			layout[column][index], _ = strconv.Atoi(line[index])
+		}
+	}
+	return true
+}
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	createAHK(solve())
+	scanner := bufio.NewScanner(os.Stdin)
+	for readLayout(scanner) {
+		createAHK(solve())
+	}
 }
