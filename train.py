@@ -10,7 +10,7 @@ import time
 
 INIT_LR = 1e-3
 BATCH_SIZE = 256
-EPOCHS = 10
+EPOCHS = 30
 TRAIN_SPLIT = 0.70
 
 device = "cuda"
