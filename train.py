@@ -8,59 +8,42 @@ from sklearn.metrics import classification_report
 import torch
 import time
 
-
-# define training hyperparameters
 INIT_LR = 1e-3
 BATCH_SIZE = 256
-EPOCHS = 20
-# define the train and val splits
+EPOCHS = 10
 TRAIN_SPLIT = 0.70
-VAL_SPLIT = 0.20
-TEST_SPLIT = 0.10
-# set the device we will be using to train the model
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 device = "cuda"
 
-# load the KMNIST dataset
-# print("[INFO] loading the KMNIST dataset...")
-# trainData = KMNIST(root="data", train=True, download=True,
-# 	transform=ToTensor())
-# testData = KMNIST(root="data", train=False, download=True,
-# 	transform=ToTensor())
+inputs_train = torch.tensor(np.fromfile("data/train/inputs.np", dtype=np.float32).reshape((-1,1,16,16)))
+outputs_train = torch.tensor(np.fromfile("data/train/outputs.np", dtype=np.int64))
 
-inputs = torch.tensor(np.fromfile("inputs.np", dtype=np.float32).reshape((-1,1,16,16)))
-outputs = torch.tensor(np.fromfile("outputs.np", dtype=np.int64))
+inputs_test = torch.tensor(np.fromfile("data/test/inputs.np", dtype=np.float32).reshape((-1,1,16,16)))
+outputs_test = torch.tensor(np.fromfile("data/test/outputs.np", dtype=np.int64))
 
-data = list(zip(inputs, outputs))
+train_val_data = list(zip(inputs_train, outputs_train))
+test_data = list(zip(inputs_test, outputs_test))
 
-# print(len(data))
-
-# print(data[0])
-
-# exit()
-
-# calculate the train/validation split
 print("[INFO] generating the train/validation split...")
-numTrainSamples = int(len(inputs) * TRAIN_SPLIT)
-numValSamples = int(len(data) * VAL_SPLIT)
-numTestSamples = len(inputs) - numTrainSamples - numValSamples
+num_train_samples = int(len(train_val_data) * TRAIN_SPLIT)
+num_val_samples = len(train_val_data) - num_train_samples
 
-(trainData, valData, testData) = random_split(data,
-	[numTrainSamples, numValSamples, numTestSamples],
+(train_data, val_data) = random_split(train_val_data,
+	[num_train_samples, num_val_samples],
 	generator=torch.Generator().manual_seed(42))
 
 # initialize the train, validation, and test data loaders
-trainDataLoader = DataLoader(trainData, shuffle=True, batch_size=BATCH_SIZE)
-valDataLoader = DataLoader(valData, batch_size=BATCH_SIZE)
-testDataLoader = DataLoader(testData, batch_size=BATCH_SIZE)
+train_data_loader = DataLoader(train_data, shuffle=True, batch_size=BATCH_SIZE)
+val_data_loader = DataLoader(val_data, batch_size=BATCH_SIZE)
+test_data_loader = DataLoader(test_data, batch_size=BATCH_SIZE)
 
 # calculate steps per epoch for training and validation set
-trainSteps = len(trainDataLoader.dataset) // BATCH_SIZE
-valSteps = len(valDataLoader.dataset) // BATCH_SIZE
+train_steps = len(train_data_loader.dataset) // BATCH_SIZE
+val_steps = len(val_data_loader.dataset) // BATCH_SIZE
 
 # initialize the LeNet model
 print("[INFO] initializing the LeNet model...")
+# model = torch.load("model/model.cpkt").to(device)
 model = CardDetector().to(device)
 
 # initialize our optimizer and loss function
@@ -91,7 +74,7 @@ for e in range(0, EPOCHS):
     trainCorrect = 0
     valCorrect = 0
     # loop over the training set
-    for (x, y) in trainDataLoader:
+    for (x, y) in train_data_loader:
         # send the input to the device
         (x, y) = (x.to(device), y.to(device))
         # perform a forward pass and calculate the training loss
@@ -114,7 +97,7 @@ for e in range(0, EPOCHS):
         # set the model in evaluation mode
         model.eval()
         # loop over the validation set
-        for (x, y) in valDataLoader:
+        for (x, y) in val_data_loader:
             # send the input to the device
             (x, y) = (x.to(device), y.to(device))
             # make the predictions and calculate the validation loss
@@ -124,11 +107,11 @@ for e in range(0, EPOCHS):
             valCorrect += (pred.argmax(1) == y).type(torch.float).sum().item()
 
     # calculate the average training and validation loss
-    avgTrainLoss = totalTrainLoss / trainSteps
-    avgValLoss = totalValLoss / valSteps
+    avgTrainLoss = totalTrainLoss / train_steps
+    avgValLoss = totalValLoss / val_steps
     # calculate the training and validation accuracy
-    trainCorrect = trainCorrect / len(trainDataLoader.dataset)
-    valCorrect = valCorrect / len(valDataLoader.dataset)
+    trainCorrect = trainCorrect / len(train_data_loader.dataset)
+    valCorrect = valCorrect / len(val_data_loader.dataset)
     # update our training history
     H["train_loss"].append(avgTrainLoss.cpu().detach().numpy())
     H["train_acc"].append(trainCorrect)
@@ -148,22 +131,31 @@ print("[INFO] total time taken to train the model: {:.2f}s".format(endTime - sta
 print("[INFO] evaluating network...")
 # turn off autograd for testing evaluation
 with torch.no_grad():
-	# set the model in evaluation mode
-	model.eval()
+    # set the model in evaluation mode
+    model.eval()
 	
-	# initialize a list to store our predictions
-	preds = []
-	# loop over the test set
-	for (x, y) in testDataLoader:
-		# send the input to the device
-		x = x.to(device)
+    # initialize a list to store our predictions
+    preds = []
+    total = len(test_data_loader.dataset)
+    errors = 0
+    # loop over the test set
+    for (x, y) in test_data_loader:
+        # send the input to the device
+        x = x.to(device)
 		# make the predictions and add them to the list
-		pred = model(x)
-		preds.extend(pred.argmax(axis=1).cpu().numpy())
+        pred = model(x)
+        pred = pred.argmax(axis=1).cpu()
+        preds.extend(pred.numpy())
+        if not torch.all(torch.eq(pred,y)):
+            print(f"{pred} != {y}")
+            errors += sum(pred != y)
+
+    print(f"Errors: {errors}/{total}")
+
 
 # generate a classification report
 # print(classification_report(inputs,
 # 	np.array(preds), target_names=['A','2','3','4','5','6','7','8','9','10','J','Q','K']))
 
 
-torch.save(model, "model.cpkt")
+torch.save(model, "model/model.cpkt")
