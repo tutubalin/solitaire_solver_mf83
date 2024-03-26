@@ -3,20 +3,37 @@
 
 solutionFileName := A_Scriptdir . "/tmp/solution.ahk"
 
+CenterX := 1280
+CenterY := 720
+Radius := 200
+Speed := 16
+msToRad := Speed/1000 * 2 * 3.1416
+DivX := 7
+DivY := 11
+
 Scrolllock::
 {
     ScreenArea2File("tmp","screenshot.png")
 
-	Loop {
+    StartTime := A_TickCount
+    SetMouseDelay 0
+
+    Loop {
+        t := (A_TickCount - StartTime) * msToRad
+        x := CenterX + Cos(t/DivX)*Radius + Cos(t/Speed)*Radius/2
+        y := CenterY + Sin(t/DivY)*Radius + Sin(t/Speed)*Radius/2
+        
+        MouseMove x, y
+        Sleep 1
+
 		if FileExist(solutionFileName) {
-			Sleep 300
-			RunWait solutionFileName
-			FileDelete solutionFileName
 			Break
-		} else {
-			Sleep 200
 		}
-	}
+    }
+
+	Sleep 100
+	RunWait solutionFileName
+	FileDelete solutionFileName
 }
 
 ScreenArea2File(FilePath?, FileName?, Area?)
