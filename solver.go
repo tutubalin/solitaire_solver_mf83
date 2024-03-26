@@ -62,37 +62,52 @@ var STACK_START_Y = 612
 
 func (state *State) outputAHK(file *os.File) {
 
+	cardsLeft := state.cardsLeft
+
 	if state.parent != nil {
 		state.parent.outputAHK(file)
 	}
 
-	stackSize := 0
-	action := state.actions
-	cardsLeft := state.cardsLeft
-	for action != nil {
+	actions := []int{}
+
+	actionNode := state.actions
+	for actionNode != nil {
+		actions = append(actions, actionNode.value)
+		cardsLeft[actionNode.value]++
+		actionNode = actionNode.prev
+	}
+	stackSize := len(actions)
+
+	fmt.Fprintf(file, "; Score: %v Actions: %v\n", state.score, actions)
+
+	for i := len(actions) - 1; i >= 0; i-- {
+		action := actions[i]
 		// click card
-		x := action.value*DX_PER_ACTION + START_X
-		y := cardsLeft[action.value]*DY_PER_CARD + START_Y
+		x := action*DX_PER_ACTION + START_X
+		y := cardsLeft[action]*DY_PER_CARD + START_Y
 		fmt.Fprintf(file, "MyClick %v, %v\n", x, y)
-		cardsLeft[action.value]--
-		action = action.prev
-		stackSize++
+		cardsLeft[action]--
 	}
 
 	// next stack
 	if stackSize > 0 {
-		fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y-DY_PER_CARD*stackSize)
+		fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y+DY_PER_CARD*stackSize)
 	}
 }
 
-func createAHK(file *os.File, state *State) {
+func createAHK(filename string, state *State) {
+	file, err := os.Create(filename)
+	check(err)
+	defer file.Close()
+
 	fmt.Fprintln(file, "#Requires AutoHotkey v2.0")
 	fmt.Fprintln(file, "#SingleInstance Force")
+	fmt.Fprintln(file, "Pause::ExitApp")
 	fmt.Fprintln(file, "SendMode \"Event\"")
-	fmt.Fprintln(file, "Scrolllock::")
-	fmt.Fprintln(file, "{")
+
 	state.outputAHK(file)
-	fmt.Fprintln(file, "}")
+
+	fmt.Fprintln(file, "ExitApp")
 
 	fmt.Fprintln(file, "MyClick(x, y)")
 	fmt.Fprintln(file, "{")
@@ -294,15 +309,17 @@ func check(err error) {
 	}
 }
 
+var outputFileName = "tmp/solution.ahk"
+
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	scanner := bufio.NewScanner(os.Stdin)
 
-	outputFile, err := os.Create("solution.ahk")
-	check(err)
-	defer outputFile.Close()
+	// fmt.Fprintln(os.Stderr, "Solver ready")
 
 	for readLayout(scanner) {
-		createAHK(outputFile, solve())
+		createAHK(outputFileName, solve())
+		// solve().output()
 	}
+
 }

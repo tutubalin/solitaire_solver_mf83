@@ -32,7 +32,7 @@ print('\033[1;32mReady\033[0m', file=sys.stderr, flush=True)
 while True:
 
     if os.path.isfile(filename):
-        time.sleep(0.1)
+        time.sleep(0.3)
         print('\033[1;36mScreenshot found\033[0m', file=sys.stderr, flush=True)
 
         with profile(f'Opening screenshot...'):

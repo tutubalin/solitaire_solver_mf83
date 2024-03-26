@@ -1,9 +1,22 @@
 ﻿#Requires AutoHotkey v2.0
 #SingleInstance Force
 
+solutionFileName := A_Scriptdir . "/tmp/solution.ahk"
+
 Scrolllock::
 {
     ScreenArea2File("tmp","screenshot.png")
+
+	Loop {
+		if FileExist(solutionFileName) {
+			Sleep 300
+			RunWait solutionFileName
+			FileDelete solutionFileName
+			Break
+		} else {
+			Sleep 200
+		}
+	}
 }
 
 ScreenArea2File(FilePath?, FileName?, Area?)
