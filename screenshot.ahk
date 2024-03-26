@@ -1,14 +1,9 @@
 ﻿#Requires AutoHotkey v2.0
 #SingleInstance Force
 
-; SetScrollLockState AlwaysOff
 Scrolllock::
 {
-    ; pToken := Gdip_Startup()
-    ; snap := Gdip_BitmapFromScreen("548|571|1172|571")
-    ; Gdip_SaveBitmapToFile(snap, "D:\Lab\AI\MoebiusWars\images")
-
-    ScreenArea2File("D:\Lab\AI\MoebiusWars\images")
+    ScreenArea2File("tmp","screenshot.png")
 }
 
 ScreenArea2File(FilePath?, FileName?, Area?)
