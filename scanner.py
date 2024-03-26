@@ -57,7 +57,7 @@ while True:
             layout = (torch.argmax(model(input), dim=1)+torch.tensor(1)).cpu().view((4,13))
 
         for column in layout:
-            print(" ".join(str(int(x)) for x in column))
+            print(" ".join(str(int(x)) for x in column), flush=True)
         
         print('\033[1;32mReady\033[0m', file=sys.stderr, flush=True)
     else:
