@@ -91,7 +91,11 @@ func (state *State) outputAHK(file *os.File) {
 
 	// next stack
 	if stackSize > 0 {
-		fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y+DY_PER_CARD*stackSize)
+		if cardsLeft[0]+cardsLeft[1]+cardsLeft[2]+cardsLeft[3] > 0 {
+			fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y+DY_PER_CARD*stackSize)
+		} else {
+			fmt.Fprintln(file, "MouseMove 1777, 1068")
+		}
 	}
 }
 
@@ -314,8 +318,6 @@ var outputFileName = "tmp/solution.ahk"
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	scanner := bufio.NewScanner(os.Stdin)
-
-	// fmt.Fprintln(os.Stderr, "Solver ready")
 
 	for readLayout(scanner) {
 		createAHK(outputFileName, solve())
