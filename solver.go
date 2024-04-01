@@ -57,8 +57,10 @@ var START_X = 1250
 var START_Y = 225
 var DX_PER_ACTION = 371
 var DY_PER_CARD = 72
+var DY_PER_CARD_IN_STACK = 80
 var STACK_X = 810
-var STACK_START_Y = 612
+var STACK_START_Y = 580
+var STACK_Y_FOR_BIG_STACK = 1172
 
 func (state *State) outputAHK(file *os.File) {
 
@@ -92,7 +94,11 @@ func (state *State) outputAHK(file *os.File) {
 	// next stack
 	if stackSize > 0 {
 		if cardsLeft[0]+cardsLeft[1]+cardsLeft[2]+cardsLeft[3] > 0 {
-			fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y+DY_PER_CARD*stackSize)
+			if stackSize < 8 {
+				fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_START_Y+DY_PER_CARD_IN_STACK*stackSize)
+			} else {
+				fmt.Fprintf(file, "MyClick %v, %v\n", STACK_X, STACK_Y_FOR_BIG_STACK)
+			}
 		} else {
 			fmt.Fprintln(file, "MouseMove 1777, 1068")
 		}
