@@ -24,6 +24,10 @@ python scanner.py | go run solve.go
 
 Then while in Solitaire game, press `Scroll Lock` button.
 
+Video Demo:
+
+[![Video Demo](https://img.youtube.com/vi/oFfNf5Tyh_I/0.jpg)](https://www.youtube.com/watch?v=oFfNf5Tyh_I)
+
 ## How it works
 
 `screenshot.ahk` sets up a hook on `Scroll Lock` button. When it's pressed, it saves screenshot to `tmp/screenshot.png` file and waits.
